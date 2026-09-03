@@ -43,8 +43,8 @@ class ElasticsearchRepository:
             return
 
         try:
-            self.client = AsyncElasticsearch(hosts=self.hosts, request_timeout=3.0)
-            ping_ok = await self.client.ping()
+            self.client = AsyncElasticsearch(hosts=self.hosts, request_timeout=1.0)
+            ping_ok = await asyncio.wait_for(self.client.ping(), timeout=1.0)
             if ping_ok:
                 self.is_connected = True
                 logger.info("Connected to Elasticsearch successfully.", hosts=self.hosts)

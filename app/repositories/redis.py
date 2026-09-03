@@ -1,4 +1,5 @@
 from __future__ import annotations
+import asyncio
 import json
 import time
 from typing import Any, Dict, List, Optional
@@ -30,8 +31,8 @@ class RedisRepository:
             return
 
         try:
-            self.client = aioredis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True)
-            pong = await self.client.ping()
+            self.client = aioredis.Redis(host=self.host, port=self.port, db=self.db, decode_responses=True, socket_connect_timeout=1.0)
+            pong = await asyncio.wait_for(self.client.ping(), timeout=1.0)
             if pong:
                 self.is_connected = True
                 logger.info("Connected to Redis server successfully.", host=self.host, port=self.port)
