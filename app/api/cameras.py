@@ -199,3 +199,23 @@ async def get_camera_snapshot(camera_id: str):
         raise HTTPException(status_code=503, detail="Camera frame capture failed")
     return Response(content=jpeg, media_type="image/jpeg")
 
+@router.post("/{camera_id}/release")
+async def release_camera_stream(camera_id: str):
+    """Releases hardware lock on camera device (e.g. for browser webcam handover)."""
+    if camera_id in _active_camera_streams:
+        _active_camera_streams[camera_id].release()
+        del _active_camera_streams[camera_id]
+    return {"status": "CAMERA_DEVICE_RELEASED", "camera_id": camera_id}
+
+@router.post("/{camera_id}/reconnect")
+async def reconnect_camera_stream(camera_id: str):
+    """Re-opens hardware stream for camera device."""
+    doc = await es_repo.get_document("cameras", camera_id)
+    rtsp = doc.get("rtsp_url", "mock") if doc else "mock"
+    if camera_id in _active_camera_streams:
+        _active_camera_streams[camera_id].release()
+        del _active_camera_streams[camera_id]
+    mgr = get_or_create_stream(camera_id, rtsp)
+    return {"status": "CAMERA_RECONNECTED", "camera_id": camera_id, "is_synthetic": mgr.is_synthetic}
+
+

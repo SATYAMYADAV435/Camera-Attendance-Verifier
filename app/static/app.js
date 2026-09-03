@@ -254,16 +254,21 @@ window.toggleBrowserWebcam = async function(camId) {
     const imgEl = document.getElementById(`img-stream-${camId}`);
     
     if (activeBrowserStreams[camId]) {
-        // Stop browser webcam
+        // Stop browser webcam & re-engage backend stream
         activeBrowserStreams[camId].getTracks().forEach(track => track.stop());
         delete activeBrowserStreams[camId];
         videoEl.style.display = "none";
         imgEl.style.display = "block";
+        await apiCall(`/cameras/${camId}/reconnect`, { method: "POST" });
+        imgEl.src = `/api/v1/cameras/${camId}/stream?t=${Date.now()}`;
         return;
     }
 
     try {
-        // Enumerate video devices
+        // 1. Release backend hardware lock on device 0/USB camera first
+        await apiCall(`/cameras/${camId}/release`, { method: "POST" });
+
+        // 2. Enumerate video devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
 
@@ -288,7 +293,13 @@ window.toggleBrowserWebcam = async function(camId) {
         videoEl.style.display = "block";
         imgEl.style.display = "none";
     } catch (err) {
-        alert("Could not access browser webcam: " + err.message);
+        // If error, reconnect backend stream
+        await apiCall(`/cameras/${camId}/reconnect`, { method: "POST" });
+        imgEl.src = `/api/v1/cameras/${camId}/stream?t=${Date.now()}`;
+        alert("Webcam Notice:\n\n" +
+              (err.name === "NotReadableError" || err.message.includes("Could not start video source")
+               ? "Camera was busy or locked by another app (e.g. Zoom, Teams, or another browser tab). Please close other camera apps and try again."
+               : err.message));
     }
 };
 
