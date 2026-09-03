@@ -57,15 +57,34 @@ class CameraStreamManager:
         frame = np.zeros((h, w, 3), dtype=np.uint8)
         frame[:] = (35, 35, 40)
         
-        # Draw moving target block
+        # Draw simulated security camera overlay
         cx = int((w // 2) + (w // 4) * np.sin(self._frame_count * 0.05))
         cy = int((h // 2) + (h // 4) * np.cos(self._frame_count * 0.05))
-        cv2.rectangle(frame, (cx - 30, cy - 60), (cx + 30, cy + 60), (60, 220, 120), -1)
+        
+        # Bounding box & target
+        cv2.rectangle(frame, (cx - 40, cy - 80), (cx + 40, cy + 80), (16, 185, 129), 2)
+        cv2.putText(frame, "PERSON #101 (TRACKED)", (cx - 40, cy - 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (16, 185, 129), 1)
+        
         # Face representation
-        cv2.circle(frame, (cx, cy - 35), 18, (200, 180, 150), -1)
+        cv2.circle(frame, (cx, cy - 45), 22, (200, 180, 150), -1)
+        cv2.circle(frame, (cx, cy - 45), 22, (99, 102, 241), 2)
+        
+        # Security OSD overlay
+        cv2.putText(frame, f"{self.camera_id} | LIVE FEED", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+        cv2.putText(frame, f"FPS: {self.expected_fps:.1f} | RES: 640x480", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (148, 163, 184), 1)
+        cv2.putText(frame, f"TIME: {time.strftime('%Y-%m-%d %H:%M:%S')}", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (148, 163, 184), 1)
         
         self._last_frame = frame
         return True, frame
+
+    def generate_jpeg_bytes(self) -> Optional[bytes]:
+        ret, frame = self.read_frame()
+        if not ret or frame is None:
+            return None
+        ret_enc, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        if not ret_enc:
+            return None
+        return buffer.tobytes()
 
     def release(self):
         if self.cap and self.cap.isOpened():

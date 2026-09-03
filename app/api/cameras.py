@@ -1,10 +1,13 @@
 from __future__ import annotations
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 from app.cameras.health import camera_health_monitor
+from app.cameras.stream import CameraStreamManager
 from app.core.permissions import AuthenticatedUser, UserRole, require_roles
 from app.models.camera import (
     Camera,
@@ -123,3 +126,45 @@ async def list_maintenance_tickets(
 ):
     docs = await es_repo.search_documents("maintenance_tickets", limit=100, sort_field="created_at")
     return [MaintenanceTicket(**d) for d in docs]
+
+# Global cache of active camera stream managers
+_active_camera_streams = {}
+
+def get_or_create_stream(camera_id: str, rtsp_url: str = "mock") -> CameraStreamManager:
+    if camera_id not in _active_camera_streams:
+        mgr = CameraStreamManager(camera_id, rtsp_url)
+        mgr.connect()
+        _active_camera_streams[camera_id] = mgr
+    return _active_camera_streams[camera_id]
+
+@router.get("/{camera_id}/stream")
+async def get_camera_mjpeg_stream(camera_id: str):
+    """Provides a live multipart MJPEG video stream with telemetry overlay."""
+    doc = await es_repo.get_document("cameras", camera_id)
+    rtsp = doc.get("rtsp_url", "mock") if doc else "mock"
+    stream_mgr = get_or_create_stream(camera_id, rtsp)
+
+    async def frame_generator():
+        while True:
+            jpeg = stream_mgr.generate_jpeg_bytes()
+            if jpeg:
+                yield (b"--frame\r\n"
+                       b"Content-Type: image/jpeg\r\n\r\n" + jpeg + b"\r\n")
+            await asyncio.sleep(0.04) # ~25 FPS
+
+    return StreamingResponse(
+        frame_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
+
+@router.get("/{camera_id}/snapshot")
+async def get_camera_snapshot(camera_id: str):
+    """Provides a single live JPEG snapshot."""
+    doc = await es_repo.get_document("cameras", camera_id)
+    rtsp = doc.get("rtsp_url", "mock") if doc else "mock"
+    stream_mgr = get_or_create_stream(camera_id, rtsp)
+    jpeg = stream_mgr.generate_jpeg_bytes()
+    if not jpeg:
+        raise HTTPException(status_code=503, detail="Camera frame capture failed")
+    return Response(content=jpeg, media_type="image/jpeg")
+

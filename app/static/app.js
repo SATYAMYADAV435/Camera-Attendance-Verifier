@@ -59,6 +59,21 @@ function updateUserWidget() {
     document.getElementById("current-user-avatar").textContent = currentUsername.slice(0, 2).toUpperCase();
 }
 
+// Switch Role Demo Helper
+document.getElementById("switch-role-btn").addEventListener("click", async () => {
+    const roles = [
+        { u: "sec_admin", p: "secadmin123", r: "SECURITY_ADMIN" },
+        { u: "admin", p: "admin123", r: "SYSTEM_ADMIN" },
+        { u: "operator", p: "operator123", r: "SECURITY_OPERATOR" },
+        { u: "maintenance", p: "maint123", r: "MAINTENANCE_OPERATOR" },
+        { u: "auditor", p: "audit123", r: "AUDITOR" }
+    ];
+    const currentIndex = roles.findIndex(r => r.u === currentUsername);
+    const next = roles[(currentIndex + 1) % roles.length];
+    await autoLogin(next.u, next.p);
+    loadDashboard();
+});
+
 // Tab navigation
 document.querySelectorAll(".nav-btn").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -70,7 +85,6 @@ document.querySelectorAll(".nav-btn").forEach(btn => {
         const pane = document.getElementById(`tab-${tabId}`);
         if (pane) pane.classList.add("active");
 
-        // Load data corresponding to tab
         if (tabId === "dashboard") loadDashboard();
         else if (tabId === "live-monitoring") loadCameraGrid();
         else if (tabId === "access-events") loadEvents();
@@ -136,6 +150,125 @@ async function loadDashboard() {
     }
 }
 
+// Load Live Camera Grid
+async function loadCameraGrid() {
+    try {
+        const res = await apiCall("/cameras");
+        if (!res.ok) return;
+        const cameras = await res.json();
+        const grid = document.getElementById("camera-streams-grid");
+
+        if (cameras.length === 0) {
+            grid.innerHTML = '<div class="empty-state">No cameras registered. Go to Camera Health to register a camera.</div>';
+            return;
+        }
+
+        grid.innerHTML = cameras.map(cam => `
+            <div class="camera-card glass">
+                <div class="camera-preview">
+                    <img src="/api/v1/cameras/${cam.camera_id}/stream" 
+                         alt="${cam.name}" 
+                         style="width:100%; height:100%; object-fit:cover;"
+                         onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);\\'>📹 Stream Connecting / Simulated</div>'"
+                    />
+                </div>
+                <div class="camera-info">
+                    <div>
+                        <strong>${cam.name}</strong>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${cam.location} (${cam.camera_id})</div>
+                    </div>
+                    <span class="badge ${cam.status === 'ONLINE' ? 'badge-allow' : 'badge-deny'}">${cam.status}</span>
+                </div>
+            </div>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load camera grid", err);
+    }
+}
+
+// Load Full Events Table
+async function loadEvents() {
+    try {
+        const decisionFilter = document.getElementById("event-filter-decision").value;
+        const url = decisionFilter ? `/events?decision=${decisionFilter}` : "/events";
+        const res = await apiCall(url);
+        if (!res.ok) return;
+        const events = await res.json();
+        const tbody = document.getElementById("full-events-tbody");
+
+        if (events.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No access events matching filter.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = events.map(ev => `
+            <tr>
+                <td><code>${ev.event_id ? ev.event_id.slice(0, 8) : '-'}</code></td>
+                <td>${new Date(ev.timestamp).toLocaleTimeString()}</td>
+                <td><span class="badge">${ev.door_id}</span></td>
+                <td>${ev.employee_name || ev.employee_id || 'Unknown'}</td>
+                <td><span class="badge badge-${(ev.decision || 'DENY').toLowerCase()}">${ev.decision}</span></td>
+                <td>${(ev.confidence_score * 100).toFixed(1)}%</td>
+                <td><small>${ev.reason}</small></td>
+                <td>
+                    <button class="btn-xs" onclick="alert(JSON.stringify(${JSON.stringify(ev.score_breakdown || {}).replace(/"/g, '&quot;')}, null, 2))">View Breakdown</button>
+                </td>
+            </tr>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load events", err);
+    }
+}
+
+// Load Incidents
+async function loadIncidents() {
+    try {
+        const res = await apiCall("/incidents");
+        if (!res.ok) return;
+        const incidents = await res.json();
+        const grid = document.getElementById("full-incidents-grid");
+
+        if (incidents.length === 0) {
+            grid.innerHTML = '<div class="empty-state">No security incidents recorded. System secure.</div>';
+            return;
+        }
+
+        grid.innerHTML = incidents.map(inc => `
+            <div class="card glass" style="margin-bottom:16px; border-left:4px solid ${inc.severity === 'CRITICAL' ? 'var(--danger)' : 'var(--warning)'};">
+                <div class="card-header">
+                    <div>
+                        <span class="badge badge-${inc.severity.toLowerCase()}">${inc.severity}</span>
+                        <strong style="margin-left:8px;">${inc.incident_type}</strong>
+                    </div>
+                    <div>
+                        <span class="badge" style="background:rgba(255,255,255,0.1);">${inc.status}</span>
+                        <small style="margin-left:8px; color:var(--text-muted);">${new Date(inc.detected_at).toLocaleTimeString()}</small>
+                    </div>
+                </div>
+                <p style="font-size:0.9rem; margin-bottom:12px;">${inc.description}</p>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <small style="color:var(--text-muted);">Door: ${inc.door_id || 'N/A'} | Camera: ${inc.camera_id || 'N/A'}</small>
+                    <div>
+                        ${inc.status === 'NEW' ? `<button class="btn btn-secondary btn-xs" onclick="updateIncidentStatus('${inc.incident_id}', 'ACKNOWLEDGED')">Acknowledge</button>` : ''}
+                        ${inc.status !== 'RESOLVED' ? `<button class="btn btn-primary btn-xs" onclick="updateIncidentStatus('${inc.incident_id}', 'RESOLVED')">Resolve Incident</button>` : '<span style="color:var(--success); font-size:0.8rem;">✅ Resolved</span>'}
+                    </div>
+                </div>
+            </div>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load incidents", err);
+    }
+}
+
+window.updateIncidentStatus = async function(incId, newStatus) {
+    await apiCall(`/incidents/${incId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: newStatus, resolution: "Resolved by operator" })
+    });
+    loadIncidents();
+    loadDashboard();
+};
+
 // Load Employees Table
 async function loadEmployees() {
     try {
@@ -167,7 +300,6 @@ async function loadEmployees() {
     }
 }
 
-// Select employee in dropdown
 window.selectForEnrollment = function(empId) {
     document.getElementById("enroll-employee-select").value = empId;
     document.getElementById("biometric-enrollment-card").scrollIntoView({ behavior: "smooth" });
@@ -181,14 +313,18 @@ window.deactivateEmployee = async function(empId) {
     }
 };
 
-// Create Employee Form
+// Modal helpers
+window.closeModal = function(id) {
+    document.getElementById(id).classList.remove("show");
+};
+
 document.getElementById("open-create-emp-modal").addEventListener("click", () => {
     document.getElementById("create-emp-modal").classList.add("show");
 });
 
-window.closeModal = function(id) {
-    document.getElementById(id).classList.remove("show");
-};
+document.getElementById("register-camera-btn").addEventListener("click", () => {
+    document.getElementById("register-camera-modal").classList.add("show");
+});
 
 document.getElementById("create-emp-form").addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -216,12 +352,37 @@ document.getElementById("create-emp-form").addEventListener("submit", async (e) 
     }
 });
 
+document.getElementById("register-camera-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const payload = {
+        camera_id: document.getElementById("cam-id").value,
+        name: document.getElementById("cam-name").value,
+        location: document.getElementById("cam-loc").value,
+        door_id: document.getElementById("cam-door-id").value || null,
+        rtsp_url: document.getElementById("cam-rtsp-url").value,
+        expected_fps: 30.0
+    };
+
+    const res = await apiCall("/cameras", {
+        method: "POST",
+        body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+        closeModal("register-camera-modal");
+        loadCameraHealth();
+        loadCameraGrid();
+        loadDashboard();
+    } else {
+        alert("Failed to register camera");
+    }
+});
+
 // Biometric Enrollment Actions
 document.getElementById("sim-enroll-face-btn").addEventListener("click", async () => {
     const empId = document.getElementById("enroll-employee-select").value;
     if (!empId) return alert("Select an employee first");
 
-    // Generate simulated high quality 512-dim embedding
     const simEmbedding = Array.from({ length: 512 }, () => Math.random() - 0.5);
     const res = await apiCall(`/employees/${empId}/enrollment/face`, {
         method: "POST",
@@ -258,9 +419,23 @@ document.getElementById("sim-enroll-reid-btn").addEventListener("click", async (
     }
 });
 
-// Access Simulation Triggers
+document.getElementById("revoke-biometrics-btn").addEventListener("click", async () => {
+    const empId = document.getElementById("enroll-employee-select").value;
+    if (!empId) return alert("Select an employee first");
+
+    const res = await apiCall(`/employees/${empId}/enrollment/revoke`, { method: "POST" });
+    if (res.ok) {
+        const box = document.getElementById("enrollment-result");
+        box.style.display = "block";
+        box.style.background = "var(--danger-bg)";
+        box.style.color = "var(--danger)";
+        box.textContent = `🗑️ Biometrics revoked for ${empId}.`;
+        loadEmployees();
+    }
+});
+
+// Simulation buttons
 document.getElementById("sim-access-btn").addEventListener("click", async () => {
-    // 1. Pick first employee if exists
     const empsRes = await apiCall("/employees");
     let emp = null;
     if (empsRes.ok) {
@@ -272,7 +447,7 @@ document.getElementById("sim-access-btn").addEventListener("click", async () => 
         door_id: "DOOR-MAIN-ENTRANCE",
         card_id: emp ? emp.card_id : "CARD-001",
         camera_id: "CAM-01-ENTRANCE",
-        liveness_score: 0.94,
+        liveness_score: 0.95,
         timestamp: new Date().toISOString()
     };
 
@@ -286,28 +461,18 @@ document.getElementById("sim-access-btn").addEventListener("click", async () => 
 });
 
 document.getElementById("sim-tailgate-btn").addEventListener("click", async () => {
-    // 1. Ingest valid card
     await apiCall("/access/card-event", {
         method: "POST",
-        body: JSON.stringify({
-            card_id: "CARD-001",
-            door_id: "DOOR-MAIN-ENTRANCE",
-            reader_id: "READER-01"
-        })
+        body: JSON.stringify({ card_id: "CARD-001", door_id: "DOOR-MAIN-ENTRANCE", reader_id: "READER-01" })
     });
-
-    // 2. Simulate 1st legitimate entrant crossing
     await apiCall("/access/crossing-event", {
         method: "POST",
         body: JSON.stringify({ door_id: "DOOR-MAIN-ENTRANCE", track_id: 101, camera_id: "CAM-01-ENTRANCE" })
     });
-
-    // 3. Simulate 2nd unauthorized entrant crossing without badge (Tailgating!)
     await apiCall("/access/crossing-event", {
         method: "POST",
         body: JSON.stringify({ door_id: "DOOR-MAIN-ENTRANCE", track_id: 102, camera_id: "CAM-01-ENTRANCE" })
     });
-
     loadDashboard();
 });
 
@@ -343,6 +508,68 @@ window.triggerHeartbeat = async function(camId) {
     await apiCall(`/cameras/${camId}/heartbeat`, { method: "POST" });
     loadCameraHealth();
 };
+
+// Load Policies
+async function loadPolicies() {
+    try {
+        const res = await apiCall("/policies");
+        if (!res.ok) return;
+        const policies = await res.json();
+        const grid = document.getElementById("policies-grid");
+
+        if (policies.length === 0) {
+            grid.innerHTML = '<div class="empty-state">No custom door policies. Standard fail-secure default policy active.</div>';
+            return;
+        }
+
+        grid.innerHTML = policies.map(p => `
+            <div class="card glass" style="margin-bottom:16px;">
+                <div class="card-header">
+                    <strong>🚪 ${p.door_name} (${p.door_id})</strong>
+                    <span class="badge badge-allow">${p.security_level}</span>
+                </div>
+                <div style="font-size:0.85rem; color:var(--text-secondary);">
+                    <div><strong>Zone:</strong> ${p.zone_id}</div>
+                    <div><strong>Cardless Biometric:</strong> ${p.allow_cardless_biometric ? 'Allowed' : 'Disabled'}</div>
+                    <div><strong>Requires Two-Factor:</strong> ${p.require_card_and_biometric ? 'Yes' : 'No'}</div>
+                    <div><strong>Allowed Levels:</strong> ${p.allowed_access_levels.join(", ")}</div>
+                </div>
+            </div>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load policies", err);
+    }
+}
+
+// Load Audit Logs
+async function loadAuditLogs() {
+    try {
+        const res = await apiCall("/audit/logs");
+        if (!res.ok) return;
+        const logs = await res.json();
+        const tbody = document.getElementById("audit-logs-tbody");
+
+        if (logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No audit logs recorded yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = logs.map(l => `
+            <tr>
+                <td><code>${l.audit_id ? l.audit_id.slice(0, 10) : '-'}</code></td>
+                <td>${new Date(l.timestamp).toLocaleTimeString()}</td>
+                <td>${l.actor_username}</td>
+                <td><span class="badge">${l.actor_role}</span></td>
+                <td><strong>${l.action}</strong></td>
+                <td>${l.target_type}:${l.target_id || ''}</td>
+                <td><span class="badge badge-${l.status === 'SUCCESS' ? 'allow' : 'deny'}">${l.status}</span></td>
+                <td><small>${JSON.stringify(l.details || {})}</small></td>
+            </tr>
+        `).join("");
+    } catch (err) {
+        console.error("Failed to load audit logs", err);
+    }
+}
 
 // Initial Start
 autoLogin().then(() => {
