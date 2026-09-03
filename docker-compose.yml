@@ -1,0 +1,19 @@
+services:
+  camera-sensor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: camera_sensor_service
+    restart: unless-stopped
+    environment:
+      - CAMERA_SOURCE=0 # Set to device index (e.g. 0), RTSP URL (rtsp://...), or "mock" for synthetic sensor
+      - FRAME_WIDTH=640
+      - FRAME_HEIGHT=480
+      - FPS=30
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./src:/app/src
+      - ./output:/app/output
+    # If running on Linux host with a physical USB/V4L2 camera, uncomment below:
+    # devices:
+    #   - /dev/video0:/dev/video0
