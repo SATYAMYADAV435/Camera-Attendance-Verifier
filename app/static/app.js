@@ -170,7 +170,7 @@ async function loadCameraGrid() {
                 <div class="camera-preview" style="position:relative; background:#000; height:240px; border-radius:12px 12px 0 0; overflow:hidden;">
                     <!-- MJPEG backend stream -->
                     <img id="img-stream-${cam.camera_id}"
-                         src="/api/v1/cameras/${cam.camera_id}/stream" 
+                         src="/api/v1/cameras/${cam.camera_id}/stream?t=${Date.now()}" 
                          alt="${cam.name}" 
                          style="width:100%; height:100%; object-fit:cover;"
                          onerror="this.style.display='none'; document.getElementById('fallback-${cam.camera_id}').style.display='flex';"
@@ -182,7 +182,7 @@ async function loadCameraGrid() {
                     </video>
                     <!-- Fallback notice -->
                     <div id="fallback-${cam.camera_id}" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.85rem; background:#0f172a;">
-                        📹 Stream connecting...
+                        📹 Stream connecting or device busy...
                     </div>
                     <!-- Live Detection HUD Overlay -->
                     <div style="position:absolute; top:12px; left:12px; display:flex; gap:6px;">
@@ -191,15 +191,18 @@ async function loadCameraGrid() {
                     </div>
                 </div>
                 <div class="camera-info" style="padding:16px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
                         <div>
                             <strong>${cam.name}</strong>
-                            <div style="font-size:0.75rem; color:var(--text-muted);">${cam.location} • Source: <code>${cam.rtsp_url}</code></div>
+                            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">
+                                ${cam.location} • Source: <code style="color:#818cf8;">${cam.rtsp_url}</code>
+                                <button class="btn-xs" style="margin-left:6px; padding:1px 6px; font-size:0.68rem;" onclick="editCameraSource('${cam.camera_id}', '${cam.rtsp_url}')">⚙️ Change Source</button>
+                            </div>
                         </div>
                         <span class="badge ${cam.status === 'ONLINE' ? 'badge-allow' : 'badge-deny'}">${cam.status}</span>
                     </div>
                     <!-- Control buttons -->
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                         <button class="btn btn-secondary btn-xs" onclick="toggleBrowserWebcam('${cam.camera_id}')">
                             🎥 Use Browser Webcam
                         </button>
@@ -216,7 +219,36 @@ async function loadCameraGrid() {
     }
 }
 
-// Toggle browser webcam direct stream
+// Edit Camera Source (e.g. 0, 1, 2, or RTSP/HTTP URL)
+window.editCameraSource = async function(camId, currentUrl) {
+    const newSource = prompt(
+        `Configure video source for camera ${camId}:\n\n` +
+        `• Enter '0' for Primary Webcam (Built-in / USB 0)\n` +
+        `• Enter '1' for Secondary Wired USB Camera (Device 1)\n` +
+        `• Enter '2' for USB Camera 2\n` +
+        `• Enter 'rtsp://...' or 'http://...' for IP / Phone Camera\n` +
+        `• Enter 'mock' for AI Simulation`,
+        currentUrl
+    );
+
+    if (newSource !== null && newSource.trim() !== "") {
+        const res = await apiCall(`/cameras/${camId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ rtsp_url: newSource.trim() })
+        });
+
+        if (res.ok) {
+            alert(`✅ Camera source updated to: ${newSource.trim()}`);
+            loadCameraGrid();
+            loadCameraHealth();
+            loadDashboard();
+        } else {
+            alert("Failed to update camera source.");
+        }
+    }
+};
+
+// Toggle browser webcam direct stream with device enumeration
 window.toggleBrowserWebcam = async function(camId) {
     const videoEl = document.getElementById(`video-stream-${camId}`);
     const imgEl = document.getElementById(`img-stream-${camId}`);
@@ -231,9 +263,26 @@ window.toggleBrowserWebcam = async function(camId) {
     }
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
-        });
+        // Enumerate video devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+        let deviceId = undefined;
+        if (videoDevices.length > 1) {
+            const deviceListStr = videoDevices.map((d, i) => `${i + 1}: ${d.label || 'Camera ' + (i + 1)}`).join('\n');
+            const choice = prompt(`Select camera for ${camId}:\n\n${deviceListStr}\n\nEnter number (1-${videoDevices.length}):`, "1");
+            const idx = parseInt(choice, 10) - 1;
+            if (idx >= 0 && idx < videoDevices.length) {
+                deviceId = { exact: videoDevices[idx].deviceId };
+            }
+        }
+
+        const constraints = {
+            video: deviceId ? { deviceId: deviceId, width: { ideal: 640 }, height: { ideal: 480 } }
+                            : { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }
+        };
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
         activeBrowserStreams[camId] = stream;
         videoEl.srcObject = stream;
         videoEl.style.display = "block";
@@ -265,13 +314,14 @@ window.authenticateFromCamera = async function(camId) {
         }
 
         // 2. Evaluate access
+        const aliceVec = [1.0, ...Array(511).fill(0.0)];
         const evalRes = await apiCall("/access/evaluate", {
             method: "POST",
             body: JSON.stringify({
                 door_id: "DOOR-MAIN-ENTRANCE",
                 camera_id: camId,
                 liveness_score: 0.96,
-                face_embedding: [1.0] + Array(511).fill(0.0) // Matches enrolled Alice Vance
+                face_embedding: aliceVec
             })
         });
 

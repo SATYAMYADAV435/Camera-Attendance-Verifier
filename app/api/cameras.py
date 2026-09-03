@@ -30,6 +30,14 @@ class TicketCreateRequest(BaseModel):
     description: str
     priority: str = "HIGH"
 
+class CameraUpdate(BaseModel):
+    name: Optional[str] = None
+    location: Optional[str] = None
+    door_id: Optional[str] = None
+    zone_id: Optional[str] = None
+    rtsp_url: Optional[str] = None
+    expected_fps: Optional[float] = None
+
 @router.post("", response_model=Camera, status_code=status.HTTP_201_CREATED)
 async def register_camera(
     camera_in: CameraCreate,
@@ -46,6 +54,29 @@ async def register_camera(
     )
     await es_repo.index_document("cameras", cam.camera_id, cam.model_dump(mode="json"))
     return cam
+
+@router.patch("/{camera_id}", response_model=Camera)
+async def update_camera(
+    camera_id: str,
+    update_in: CameraUpdate,
+    current_user: AuthenticatedUser = Depends(require_roles([UserRole.SYSTEM_ADMIN, UserRole.SECURITY_ADMIN, UserRole.MAINTENANCE_OPERATOR])),
+):
+    doc = await es_repo.get_document("cameras", camera_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Camera not found")
+
+    update_dict = update_in.model_dump(exclude_unset=True)
+    doc.update(update_dict)
+    await es_repo.index_document("cameras", camera_id, doc)
+
+    # If RTSP/source was changed, release existing stream manager and reconnect
+    if "rtsp_url" in update_dict:
+        if camera_id in _active_camera_streams:
+            _active_camera_streams[camera_id].release()
+            del _active_camera_streams[camera_id]
+        get_or_create_stream(camera_id, doc["rtsp_url"])
+
+    return Camera(**doc)
 
 @router.get("", response_model=List[Camera])
 async def list_cameras(
