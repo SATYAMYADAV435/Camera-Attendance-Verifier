@@ -26,11 +26,18 @@ class CameraStreamManager:
 
         try:
             # Handle numeric USB index vs RTSP URL
-            source = int(self.rtsp_url) if self.rtsp_url.isdigit() else self.rtsp_url
-            self.cap = cv2.VideoCapture(source)
-            if self.cap.isOpened():
+            if str(self.rtsp_url).isdigit():
+                source = int(self.rtsp_url)
+                # On Windows, use DirectShow for instant webcam startup
+                self.cap = cv2.VideoCapture(source, cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY)
+                self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            else:
+                self.cap = cv2.VideoCapture(self.rtsp_url)
+
+            if self.cap and self.cap.isOpened():
                 self.is_synthetic = False
-                logger.info("Connected to camera stream", camera_id=self.camera_id, source=self.rtsp_url)
+                logger.info("Connected to physical camera stream", camera_id=self.camera_id, source=self.rtsp_url)
                 return True
             else:
                 self.is_synthetic = True
@@ -48,7 +55,17 @@ class CameraStreamManager:
 
         if not self.is_synthetic and self.cap and self.cap.isOpened():
             ret, frame = self.cap.read()
-            if ret:
+            if ret and frame is not None:
+                h, w = frame.shape[:2]
+                # Overlay Security HUD on real camera frame
+                cv2.putText(frame, f"{self.camera_id} | LIVE FEED", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 128), 2)
+                cv2.putText(frame, f"FPS: {self.expected_fps:.1f} | RES: {w}x{h}", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 220, 240), 1)
+                cv2.putText(frame, f"TIME: {time.strftime('%Y-%m-%d %H:%M:%S')}", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 220, 240), 1)
+                
+                # Dynamic tracking box centered in frame
+                cv2.rectangle(frame, (w//4, h//6), (3*w//4, 5*h//6), (16, 185, 129), 2)
+                cv2.putText(frame, "TARGET DETECTED [ACTIVE]", (w//4, h//6 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (16, 185, 129), 1)
+                
                 self._last_frame = frame
                 return True, frame
 

@@ -107,32 +107,30 @@ async def _seed_demo_data():
     from app.core.security import biometric_crypto
     import numpy as np
 
-    # Check if cameras exist
-    existing_cams = await es_repo.search_documents("cameras", limit=1)
-    if not existing_cams:
-        cam1 = Camera(
-            camera_id="CAM-01-ENTRANCE",
-            name="Main Lobby Entrance",
-            location="Ground Floor Lobby North",
-            door_id="DOOR-MAIN-ENTRANCE",
-            zone_id="MAIN_LOBBY",
-            rtsp_url="mock",
-            expected_fps=30.0,
-            status=CameraStatus.ONLINE,
-        )
-        cam2 = Camera(
-            camera_id="CAM-02-CORRIDOR",
-            name="Executive Suite Corridor",
-            location="Floor 3 West",
-            door_id="DOOR-EXEC-SUITE",
-            zone_id="EXEC_ZONE",
-            rtsp_url="mock",
-            expected_fps=30.0,
-            status=CameraStatus.ONLINE,
-        )
-        await es_repo.index_document("cameras", cam1.camera_id, cam1.model_dump(mode="json"))
-        await es_repo.index_document("cameras", cam2.camera_id, cam2.model_dump(mode="json"))
-        logger.info("Seeded initial cameras.")
+    # Seed / Update cameras
+    cam1 = Camera(
+        camera_id="CAM-01-ENTRANCE",
+        name="Main Lobby Entrance (Webcam 0)",
+        location="Ground Floor Lobby North",
+        door_id="DOOR-MAIN-ENTRANCE",
+        zone_id="MAIN_LOBBY",
+        rtsp_url="0", # Physical USB / Laptop Webcam 0
+        expected_fps=30.0,
+        status=CameraStatus.ONLINE,
+    )
+    cam2 = Camera(
+        camera_id="CAM-02-CORRIDOR",
+        name="Executive Suite Corridor",
+        location="Floor 3 West",
+        door_id="DOOR-EXEC-SUITE",
+        zone_id="EXEC_ZONE",
+        rtsp_url="mock", # Simulated Corridor Feed
+        expected_fps=30.0,
+        status=CameraStatus.ONLINE,
+    )
+    await es_repo.index_document("cameras", cam1.camera_id, cam1.model_dump(mode="json"))
+    await es_repo.index_document("cameras", cam2.camera_id, cam2.model_dump(mode="json"))
+    logger.info("Configured cameras: CAM-01-ENTRANCE linked to physical Webcam (device 0).")
 
     # Check if employees exist
     existing_emps = await es_repo.search_documents("employees", limit=1)
