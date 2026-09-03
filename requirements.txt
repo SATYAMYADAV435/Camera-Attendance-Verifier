@@ -19,6 +19,7 @@ cryptography>=42.0.0
 
 # Computer Vision & Numeric Processing
 opencv-python-headless>=4.8.0.76
+ultralytics>=8.1.0
 numpy>=1.24.0
 scipy>=1.11.0
 

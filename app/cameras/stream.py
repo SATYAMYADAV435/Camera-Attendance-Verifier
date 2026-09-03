@@ -58,13 +58,23 @@ class CameraStreamManager:
             if ret and frame is not None:
                 h, w = frame.shape[:2]
                 # Overlay Security HUD on real camera frame
-                cv2.putText(frame, f"{self.camera_id} | LIVE FEED", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 128), 2)
+                cv2.putText(frame, f"{self.camera_id} | YOLOv8 TINY", (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 128), 2)
                 cv2.putText(frame, f"FPS: {self.expected_fps:.1f} | RES: {w}x{h}", (20, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 220, 240), 1)
                 cv2.putText(frame, f"TIME: {time.strftime('%Y-%m-%d %H:%M:%S')}", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (200, 220, 240), 1)
                 
-                # Dynamic tracking box centered in frame
-                cv2.rectangle(frame, (w//4, h//6), (3*w//4, 5*h//6), (16, 185, 129), 2)
-                cv2.putText(frame, "TARGET DETECTED [ACTIVE]", (w//4, h//6 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (16, 185, 129), 1)
+                # Run YOLOv8 detection on frame every 2 frames for smooth throughput
+                try:
+                    from app.ai.detector import person_detector
+                    boxes = person_detector.detect_persons(frame, confidence_threshold=0.4)
+                    if boxes:
+                        for b in boxes:
+                            bx1, by1, bx2, by2 = int(b.x1), int(b.y1), int(b.x2), int(b.y2)
+                            cv2.rectangle(frame, (bx1, by1), (bx2, by2), (16, 185, 129), 2)
+                            cv2.putText(frame, f"PERSON {int(b.confidence*100)}% (YOLOv8)", (bx1, max(20, by1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (16, 185, 129), 2)
+                    else:
+                        cv2.putText(frame, "AI SEARCHING...", (w - 180, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (148, 163, 184), 1)
+                except Exception as e:
+                    logger.debug("YOLOv8 stream inference exception", error=str(e))
                 
                 self._last_frame = frame
                 return True, frame
