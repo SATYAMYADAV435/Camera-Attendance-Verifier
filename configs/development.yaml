@@ -1,0 +1,71 @@
+system:
+  environment: development
+  app_name: "Intelligent Office Access Management System"
+  debug: true
+  api_prefix: "/api/v1"
+  secret_key: "dev-secret-key-do-not-use-in-production-must-be-32-bytes!"
+  jwt_algorithm: "HS256"
+  access_token_expire_minutes: 480
+
+security:
+  fail_secure: true
+  require_liveness_for_biometric: true
+  allow_cardless_access_default: true
+  enforce_time_restrictions: true
+  biometric_encryption_key: "MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE="
+
+identity:
+  # Fusion weights (sum = 1.0)
+  w_face: 0.35
+  w_body: 0.15
+  w_live: 0.20
+  w_card: 0.15
+  w_time: 0.08
+  w_context: 0.07
+
+  # Similarity and Quality Thresholds
+  face_threshold: 0.65
+  body_threshold: 0.60
+  liveness_threshold: 0.70
+  minimum_quality: 0.50
+  
+  # Decision Tiers
+  high_confidence_threshold: 0.75
+  medium_confidence_threshold: 0.55
+
+tailgating:
+  enabled: true
+  authentication_window_seconds: 5.0
+  door_crossing_window_seconds: 4.0
+  max_allowed_distance_pixels: 120.0
+
+multi_camera:
+  enabled: true
+  reid_similarity_threshold: 0.65
+  max_transit_time_seconds: 180.0
+  min_transit_time_seconds: 1.0
+
+camera:
+  heartbeat_timeout_seconds: 30.0
+  failure_timeout_seconds: 60.0
+  frozen_frame_detection: true
+  frozen_frame_threshold: 20
+  blur_laplacian_threshold: 40.0
+  default_fps: 30.0
+
+elasticsearch:
+  hosts: ["http://localhost:9200"]
+  index_prefix: "office-access"
+  enable_in_memory_fallback: true
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  enable_in_memory_fallback: true
+
+retention:
+  access_events_days: 90
+  observations_days: 14
+  incidents_days: 365
+  audit_logs_days: 730

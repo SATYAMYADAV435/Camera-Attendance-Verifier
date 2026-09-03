@@ -1,19 +1,58 @@
 services:
-  camera-sensor:
+  access-app:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: camera_sensor_service
+    container_name: office_access_service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - ELASTICSEARCH_HOST=http://elasticsearch:9200
+      - REDIS_HOST=redis
+      - JWT_SECRET_KEY=production-secret-key-32-bytes-minimum-required-here!
+      - BIOMETRIC_ENCRYPTION_KEY=MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+    depends_on:
+      - elasticsearch
+      - redis
+    volumes:
+      - ./configs:/app/configs
+      - ./logs:/app/logs
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.2
+    container_name: office_access_elasticsearch
     restart: unless-stopped
     environment:
-      - CAMERA_SOURCE=0 # Set to device index (e.g. 0), RTSP URL (rtsp://...), or "mock" for synthetic sensor
-      - FRAME_WIDTH=640
-      - FRAME_HEIGHT=480
-      - FPS=30
-      - LOG_LEVEL=INFO
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
     volumes:
-      - ./src:/app/src
-      - ./output:/app/output
-    # If running on Linux host with a physical USB/V4L2 camera, uncomment below:
-    # devices:
-    #   - /dev/video0:/dev/video0
+      - es_data:/usr/share/elasticsearch/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: office_access_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: office_access_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+volumes:
+  es_data:
+  redis_data:

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intelligent-office-access"
+version = "1.0.0"
+description = "P-002: Intelligent Multi-Camera Office Access Management System"
+authors = [{ name = "Satyam Yadav", email = "satyam@example.com" }]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.28.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.2.0",
+    "python-multipart>=0.0.9",
+    "elasticsearch>=8.12.0",
+    "redis>=5.0.0",
+    "PyYAML>=6.0.1",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt>=4.1.2",
+    "cryptography>=42.0.0",
+    "opencv-python-headless>=4.8.0.76",
+    "numpy>=1.24.0",
+    "scipy>=1.11.0",
+    "prometheus-client>=0.20.0",
+    "structlog>=24.1.0"
+]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --import-mode=importlib"
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"

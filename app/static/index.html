@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P-002: Intelligent Office Access Management</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+    <div id="app" class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <circle cx="12" cy="11" r="3"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h2>SECURE-ACCESS</h2>
+                    <span class="badge">P-002 AI PLATFORM</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="dashboard">
+                    <span class="nav-icon">📊</span> Overview Dashboard
+                </button>
+                <button class="nav-btn" data-tab="live-monitoring">
+                    <span class="nav-icon">📹</span> Live Camera Grid
+                </button>
+                <button class="nav-btn" data-tab="access-events">
+                    <span class="nav-icon">🔑</span> Access Decisions
+                </button>
+                <button class="nav-btn" data-tab="incidents">
+                    <span class="nav-icon">🚨</span> Security Incidents
+                    <span id="incident-counter" class="pill-badge">0</span>
+                </button>
+                <button class="nav-btn" data-tab="employees">
+                    <span class="nav-icon">👥</span> Employees & Biometrics
+                </button>
+                <button class="nav-btn" data-tab="cameras">
+                    <span class="nav-icon">🩺</span> Camera Health
+                </button>
+                <button class="nav-btn" data-tab="policies">
+                    <span class="nav-icon">🛡️</span> Access Policies
+                </button>
+                <button class="nav-btn" data-tab="audit">
+                    <span class="nav-icon">📜</span> Audit Logs
+                </button>
+            </nav>
+
+            <div class="user-profile-widget">
+                <div class="avatar" id="current-user-avatar">SA</div>
+                <div class="user-info">
+                    <div class="user-name" id="current-user-name">Security Admin</div>
+                    <div class="user-role" id="current-user-role">SECURITY_ADMIN</div>
+                </div>
+                <button id="switch-role-btn" class="icon-btn" title="Switch Role">🔄</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="topbar">
+                <div class="topbar-title">
+                    <h1 id="page-title">Security Command Center</h1>
+                    <p class="subtitle" id="page-subtitle">Real-time biometric multi-signal fusion & physical movement analytics</p>
+                </div>
+                <div class="topbar-actions">
+                    <div class="system-status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span id="system-status-text">AI Pipeline Active</span>
+                    </div>
+                    <button class="btn btn-secondary" id="sim-access-btn">⚡ Test Access Swipe</button>
+                    <button class="btn btn-primary" id="sim-tailgate-btn">⚠️ Simulate Tailgating</button>
+                </div>
+            </header>
+
+            <!-- TAB 1: OVERVIEW DASHBOARD -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Active Cameras</span>
+                            <span class="kpi-icon">📷</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-cameras">0 / 0</div>
+                        <div class="kpi-sub">Real-time RTSP Health</div>
+                    </div>
+
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Access Granted</span>
+                            <span class="kpi-icon success-color">✅</span>
+                        </div>
+                        <div class="kpi-value success-color" id="kpi-granted">0</div>
+                        <div class="kpi-sub" id="kpi-success-rate">100% auth rate</div>
+                    </div>
+
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Denied / Review</span>
+                            <span class="kpi-icon danger-color">🛑</span>
+                        </div>
+                        <div class="kpi-value danger-color" id="kpi-denied">0</div>
+                        <div class="kpi-sub">Fail-secure blocks</div>
+                    </div>
+
+                    <div class="kpi-card glass highlight-alert">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Tailgating Incidents</span>
+                            <span class="kpi-icon warning-color">⚠️</span>
+                        </div>
+                        <div class="kpi-value warning-color" id="kpi-tailgating">0</div>
+                        <div class="kpi-sub">Boundary violations</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Content Split -->
+                <div class="dashboard-split-grid">
+                    <!-- Live Event Feed -->
+                    <div class="card glass">
+                        <div class="card-header">
+                            <h3>Live Access Decisions</h3>
+                            <button class="btn-xs" onclick="loadDashboard()">Refresh</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Door</th>
+                                        <th>Subject</th>
+                                        <th>Decision</th>
+                                        <th>Score</th>
+                                        <th>Method</th>
+                                        <th>Reason</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashboard-events-tbody">
+                                    <tr><td colspan="7" class="empty-state">Waiting for access events...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Active Incidents -->
+                    <div class="card glass">
+                        <div class="card-header">
+                            <h3>Active Security Incidents</h3>
+                            <span class="badge badge-warning" id="active-inc-badge">0 Open</span>
+                        </div>
+                        <div class="incident-list" id="dashboard-incident-list">
+                            <div class="empty-state">No active security alerts</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: LIVE CAMERA GRID -->
+            <section id="tab-live-monitoring" class="tab-pane">
+                <div class="camera-grid" id="camera-streams-grid">
+                    <!-- Camera cards populated dynamically -->
+                </div>
+            </section>
+
+            <!-- TAB 3: ACCESS EVENTS -->
+            <section id="tab-access-events" class="tab-pane">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h3>Full Access Event Logs</h3>
+                        <div class="filter-controls">
+                            <select id="event-filter-decision" class="form-select">
+                                <option value="">All Decisions</option>
+                                <option value="ALLOW">ALLOW</option>
+                                <option value="DENY">DENY</option>
+                                <option value="REVIEW">REVIEW</option>
+                                <option value="ALERT">ALERT</option>
+                            </select>
+                            <button class="btn btn-secondary" onclick="loadEvents()">Apply Filter</button>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Event ID</th>
+                                    <th>Time</th>
+                                    <th>Door ID</th>
+                                    <th>Employee</th>
+                                    <th>Decision</th>
+                                    <th>Confidence</th>
+                                    <th>Reason</th>
+                                    <th>Breakdown</th>
+                                </tr>
+                            </thead>
+                            <tbody id="full-events-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: SECURITY INCIDENTS -->
+            <section id="tab-incidents" class="tab-pane">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h3>Incident Management & Triage</h3>
+                    </div>
+                    <div class="incident-grid" id="full-incidents-grid"></div>
+                </div>
+            </section>
+
+            <!-- TAB 5: EMPLOYEES & BIOMETRICS -->
+            <section id="tab-employees" class="tab-pane">
+                <div class="employees-layout">
+                    <div class="card glass">
+                        <div class="card-header">
+                            <h3>Enrolled Employees</h3>
+                            <button class="btn btn-primary" id="open-create-emp-modal">+ New Employee</button>
+                        </div>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name</th>
+                                        <th>Department</th>
+                                        <th>Access Level</th>
+                                        <th>Card ID</th>
+                                        <th>Face Biometric</th>
+                                        <th>Re-ID Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="employees-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Biometric Enrollment Card -->
+                    <div class="card glass" id="biometric-enrollment-card">
+                        <div class="card-header">
+                            <h3>Biometric Enrollment Portal</h3>
+                        </div>
+                        <div class="enrollment-form">
+                            <p class="text-muted">Select an employee to capture face and person Re-ID vectors.</p>
+                            <div class="form-group">
+                                <label>Target Employee</label>
+                                <select id="enroll-employee-select" class="form-select"></select>
+                            </div>
+                            <div class="biometric-actions">
+                                <button class="btn btn-primary" id="sim-enroll-face-btn">📸 Capture & Enroll Face Vector</button>
+                                <button class="btn btn-secondary" id="sim-enroll-reid-btn">🚶 Capture Body Re-ID Vector</button>
+                                <button class="btn btn-danger" id="revoke-biometrics-btn">🗑️ Revoke Biometrics</button>
+                            </div>
+                            <div id="enrollment-result" class="enrollment-status-box"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 6: CAMERA HEALTH -->
+            <section id="tab-cameras" class="tab-pane">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h3>Camera Telemetry & Health Monitoring</h3>
+                        <button class="btn btn-primary" id="register-camera-btn">+ Register Camera</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Camera ID</th>
+                                    <th>Name</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>FPS</th>
+                                    <th>Latency</th>
+                                    <th>Stream Age</th>
+                                    <th>Blur Score</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="camera-health-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 7: POLICIES -->
+            <section id="tab-policies" class="tab-pane">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h3>Door Security Policies</h3>
+                    </div>
+                    <div class="policies-grid" id="policies-grid"></div>
+                </div>
+            </section>
+
+            <!-- TAB 8: AUDIT LOGS -->
+            <section id="tab-audit" class="tab-pane">
+                <div class="card glass">
+                    <div class="card-header">
+                        <h3>Immutable Security Audit Logs</h3>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Audit ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Actor</th>
+                                    <th>Role</th>
+                                    <th>Action</th>
+                                    <th>Target</th>
+                                    <th>Status</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-logs-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="create-emp-modal" class="modal-backdrop">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h3>Create New Employee</h3>
+                <button class="close-btn" onclick="closeModal('create-emp-modal')">&times;</button>
+            </div>
+            <form id="create-emp-form">
+                <div class="form-group">
+                    <label>Employee Code</label>
+                    <input type="text" id="emp-code" required placeholder="e.g. EMP-101">
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="emp-name" required placeholder="e.g. Alice Chen">
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <input type="text" id="emp-dept" required placeholder="e.g. Security Engineering">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <input type="text" id="emp-role" required placeholder="e.g. Senior Security Architect">
+                </div>
+                <div class="form-group">
+                    <label>Access Level</label>
+                    <select id="emp-access-level" class="form-select">
+                        <option value="STANDARD">STANDARD</option>
+                        <option value="EXECUTIVE">EXECUTIVE</option>
+                        <option value="ADMIN_FACILITY">ADMIN_FACILITY</option>
+                        <option value="RESTRICTED">RESTRICTED</option>
+                        <option value="VISITOR">VISITOR</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Access Card ID</label>
+                    <input type="text" id="emp-card-id" placeholder="e.g. CARD-98765">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('create-emp-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
