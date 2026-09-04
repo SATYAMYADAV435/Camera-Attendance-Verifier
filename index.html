@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P-002: Intelligent Office Access Management</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="app/static/style.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="dark-theme">
+    <div id="app" class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <circle cx="12" cy="11" r="3"/>
+                    </svg>
+                </div>
+                <div class="brand-text">
+                    <h2>SECURE-ACCESS</h2>
+                    <span class="badge">P-002 AI PLATFORM</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="dashboard">
+                    <span class="nav-icon">📊</span> Overview Dashboard
+                </button>
+                <button class="nav-btn" data-tab="live-monitoring">
+                    <span class="nav-icon">📹</span> Live Camera Grid
+                </button>
+                <button class="nav-btn" data-tab="access-events">
+                    <span class="nav-icon">🔑</span> Access Decisions
+                </button>
+                <button class="nav-btn" data-tab="incidents">
+                    <span class="nav-icon">🚨</span> Security Incidents
+                    <span id="incident-counter" class="pill-badge">0</span>
+                </button>
+                <button class="nav-btn" data-tab="employees">
+                    <span class="nav-icon">👥</span> Employees & Biometrics
+                </button>
+                <button class="nav-btn" data-tab="cameras">
+                    <span class="nav-icon">🩺</span> Camera Health
+                </button>
+                <button class="nav-btn" data-tab="policies">
+                    <span class="nav-icon">🛡️</span> Access Policies
+                </button>
+                <button class="nav-btn" data-tab="audit">
+                    <span class="nav-icon">📜</span> Audit Logs
+                </button>
+            </nav>
+
+            <div class="user-profile-widget">
+                <div class="avatar" id="current-user-avatar">SA</div>
+                <div class="user-info">
+                    <div class="user-name" id="current-user-name">Security Admin</div>
+                    <div class="user-role" id="current-user-role">SECURITY_ADMIN</div>
+                </div>
+                <button id="switch-role-btn" class="icon-btn" title="Switch Role">🔄</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="main-content">
+            <!-- Header bar -->
+            <header class="topbar">
+                <div class="topbar-title">
+                    <h1 id="page-title">Security Command Center</h1>
+                    <p class="subtitle" id="page-subtitle">Real-time biometric multi-signal fusion & physical movement analytics</p>
+                </div>
+                <div class="topbar-actions">
+                    <div class="system-status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span id="system-status-text">AI Pipeline Active</span>
+                    </div>
+                    <button class="btn btn-secondary" id="sim-access-btn">⚡ Test Access Swipe</button>
+                    <button class="btn btn-primary" id="sim-tailgate-btn">⚠️ Simulate Tailgating</button>
+                </div>
+            </header>
+
+            <!-- TAB 1: OVERVIEW DASHBOARD -->
+            <section id="tab-dashboard" class="tab-pane active">
+                <!-- KPI Cards -->
+                <div class="kpi-grid">
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Active Cameras</span>
+                            <span class="kpi-icon">📷</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-cameras">0 / 0</div>
+                        <div class="kpi-sub">Real-time RTSP Health</div>
+                    </div>
+
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Today's Entries</span>
+                            <span class="kpi-icon">🚪</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-entries">0</div>
+                        <div class="kpi-sub" id="kpi-entries-trend">+0% vs yesterday</div>
+                    </div>
+
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Active Incidents</span>
+                            <span class="kpi-icon">⚠️</span>
+                        </div>
+                        <div class="kpi-value warning-text" id="kpi-incidents">0</div>
+                        <div class="kpi-sub" id="kpi-tailgates">0 tailgating alerts</div>
+                    </div>
+
+                    <div class="kpi-card glass">
+                        <div class="kpi-header">
+                            <span class="kpi-title">Enrolled Staff</span>
+                            <span class="kpi-icon">👤</span>
+                        </div>
+                        <div class="kpi-value" id="kpi-employees">0</div>
+                        <div class="kpi-sub">Vector embeddings indexed</div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Layout 2-col -->
+                <div class="dashboard-grid">
+                    <!-- Live Camera Feed Widget -->
+                    <div class="panel glass">
+                        <div class="panel-header">
+                            <h3>Live Primary Camera: Main Entrance</h3>
+                            <div class="panel-actions">
+                                <span class="badge badge-success" id="main-cam-badge">FEED ONLINE</span>
+                            </div>
+                        </div>
+                        <div class="video-container main-feed">
+                            <img id="primary-video-feed" src="/api/v1/cameras/CAM-01-ENTRANCE/stream" alt="Live AI Camera Feed" onerror="this.src='https://placehold.co/640x360/131b2e/f8fafc?text=Camera+Stream+Loading...'">
+                            <div class="video-overlay">
+                                <div class="overlay-tag" id="main-fps-tag">FPS: 30.0</div>
+                                <div class="overlay-tag overlay-right" id="main-zone-tag">ZONE: MAIN_LOBBY</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Access Decision Activity Stream -->
+                    <div class="panel glass">
+                        <div class="panel-header">
+                            <h3>Real-Time Access Stream</h3>
+                            <div class="panel-actions">
+                                <button class="btn btn-sm btn-secondary" onclick="refreshAccessEvents()">Refresh</button>
+                            </div>
+                        </div>
+                        <div class="activity-feed" id="dashboard-access-feed">
+                            <div class="empty-state">Awaiting real-time door swipe events...</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: LIVE CAMERA GRID -->
+            <section id="tab-live-monitoring" class="tab-pane">
+                <div class="grid-header">
+                    <h2>Multi-Camera Video Wall</h2>
+                    <div class="grid-controls">
+                        <button class="btn btn-secondary" onclick="openRegisterCameraModal()">+ Add New Camera</button>
+                        <button class="btn btn-secondary" onclick="refreshCameraGrid()">🔄 Refresh Grid</button>
+                    </div>
+                </div>
+                <div class="camera-wall-grid" id="camera-wall-container">
+                    <!-- Injected dynamically via app.js -->
+                </div>
+            </section>
+
+            <!-- TAB 3: ACCESS DECISIONS & LOGS -->
+            <section id="tab-access-events" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Access Control Decision History</h2>
+                        <div class="table-actions">
+                            <input type="text" id="access-search" placeholder="Search employee, door, or outcome..." class="search-input" onkeyup="filterAccessTable()">
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Employee / Subject</th>
+                                <th>Door / Zone</th>
+                                <th>Decision</th>
+                                <th>Fusion Score</th>
+                                <th>Biometric / Card</th>
+                                <th>Rationale</th>
+                            </tr>
+                        </thead>
+                        <tbody id="access-events-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 4: SECURITY INCIDENTS & TAILGATING -->
+            <section id="tab-incidents" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Active Security Incidents & Anti-Passback / Tailgating Alerts</h2>
+                        <div class="table-actions">
+                            <select id="incident-severity-filter" class="select-input" onchange="loadIncidents()">
+                                <option value="">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Incident ID</th>
+                                <th>Type</th>
+                                <th>Severity</th>
+                                <th>Camera / Zone</th>
+                                <th>Detected At</th>
+                                <th>Persons Count</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="incidents-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 5: EMPLOYEES & BIOMETRIC ENROLLMENT -->
+            <section id="tab-employees" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Employee Biometrics & Access Directory</h2>
+                        <div class="table-actions">
+                            <button class="btn btn-primary" onclick="openEnrollmentModal()">+ Enroll New Employee</button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                                <th>Access Level</th>
+                                <th>Biometric Status</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employees-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 6: CAMERA HEALTH & DIAGNOSTICS -->
+            <section id="tab-cameras" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Camera Health Monitoring & Diagnostics</h2>
+                        <div class="table-actions">
+                            <button class="btn btn-primary" onclick="openRegisterCameraModal()">+ Register Camera</button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Camera ID</th>
+                                <th>Name</th>
+                                <th>Location</th>
+                                <th>RTSP Source</th>
+                                <th>Status</th>
+                                <th>FPS (Cur / Exp)</th>
+                                <th>Last Frame</th>
+                                <th>Tamper Alert</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="camera-diagnostics-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 7: ACCESS POLICIES -->
+            <section id="tab-policies" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Door Access Control & Multi-Factor Policies</h2>
+                        <div class="table-actions">
+                            <button class="btn btn-primary" onclick="openPolicyModal()">+ Create Policy</button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Policy ID</th>
+                                <th>Policy Name</th>
+                                <th>Required Level</th>
+                                <th>Target Zone</th>
+                                <th>MFA Required</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="policies-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- TAB 8: AUDIT LOGS -->
+            <section id="tab-audit" class="tab-pane">
+                <div class="table-container glass">
+                    <div class="table-header">
+                        <h2>Immutable Security & Compliance Audit Log</h2>
+                        <div class="table-actions">
+                            <button class="btn btn-secondary" onclick="loadAuditLogs()">Refresh Audit Trail</button>
+                        </div>
+                    </div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Log ID</th>
+                                <th>Timestamp</th>
+                                <th>Actor</th>
+                                <th>Action</th>
+                                <th>Resource Type</th>
+                                <th>Resource ID</th>
+                                <th>Client IP</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-table-body">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Enroll Employee Modal -->
+    <div id="enroll-modal" class="modal-backdrop">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h3>Enroll Employee Biometrics</h3>
+                <button class="close-btn" onclick="closeModal('enroll-modal')">&times;</button>
+            </div>
+            <form id="enrollment-form">
+                <div class="form-group">
+                    <label>Employee ID</label>
+                    <input type="text" id="enroll-emp-id" required placeholder="e.g. EMP-1045">
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="enroll-name" required placeholder="e.g. John Doe">
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <input type="text" id="enroll-dept" required placeholder="e.g. Software Engineering">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <input type="text" id="enroll-role" required placeholder="e.g. Staff Software Engineer">
+                </div>
+                <div class="form-group">
+                    <label>Access Level</label>
+                    <select id="enroll-level" class="select-input">
+                        <option value="STANDARD_EMPLOYEE">STANDARD_EMPLOYEE</option>
+                        <option value="CONTRACTOR">CONTRACTOR</option>
+                        <option value="RESTRICTED_LAB">RESTRICTED_LAB</option>
+                        <option value="ADMIN_FACILITY">ADMIN_FACILITY</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Facial Biometric Photo (JPG / PNG)</label>
+                    <input type="file" id="enroll-photo" accept="image/*" required>
+                    <small style="color:var(--text-muted); font-size:0.75rem;">AI will extract 512-dim face embedding with AES-256-GCM encryption.</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('enroll-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Enroll & Vectorize</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Camera Modal -->
+    <div id="register-camera-modal" class="modal-backdrop">
+        <div class="modal glass">
+            <div class="modal-header">
+                <h3>Register Security Camera</h3>
+                <button class="close-btn" onclick="closeModal('register-camera-modal')">&times;</button>
+            </div>
+            <form id="register-camera-form">
+                <div class="form-group">
+                    <label>Camera ID</label>
+                    <input type="text" id="cam-id" required placeholder="e.g. CAM-03-SERVER-ROOM">
+                </div>
+                <div class="form-group">
+                    <label>Camera Name</label>
+                    <input type="text" id="cam-name" required placeholder="e.g. Server Room North Gate">
+                </div>
+                <div class="form-group">
+                    <label>Location / Zone</label>
+                    <input type="text" id="cam-loc" required placeholder="e.g. Building B - 2nd Floor">
+                </div>
+                <div class="form-group">
+                    <label>Associated Door ID</label>
+                    <input type="text" id="cam-door-id" placeholder="e.g. DOOR-SERVER-ROOM">
+                </div>
+                <div class="form-group">
+                    <label>RTSP / Video Source</label>
+                    <input type="text" id="cam-rtsp-url" required placeholder="0 (for USB webcam), rtsp://..., or mock">
+                    <small style="color:var(--text-muted); font-size:0.75rem;">Use '0' for built-in/USB webcam, 'rtsp://user:pass@ip:554/stream' for IP camera, or 'mock' for AI simulator.</small>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('register-camera-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Camera</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Link Scripts -->
+    <script src="app/static/app.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
