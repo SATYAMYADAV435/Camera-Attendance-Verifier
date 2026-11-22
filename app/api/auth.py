@@ -18,7 +18,10 @@ class TokenResponse(BaseModel):
     username: str
     role: UserRole
 
-# Demo accounts with RBAC roles for development & testing
+# Demo accounts with RBAC roles for development & testing ONLY.
+# Passwords below are plaintext demo defaults (e.g. admin / admin123).
+# They are NOT hashed and must be replaced with a real user store and
+# hashed passwords before any production / network-exposed use.
 DEMO_USERS = {
     "admin": {"user_id": "USR-ADMIN", "password_hash": "admin123", "role": UserRole.SYSTEM_ADMIN},
     "sec_admin": {"user_id": "USR-SEC-ADMIN", "password_hash": "secadmin123", "role": UserRole.SECURITY_ADMIN},

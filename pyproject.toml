@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "intelligent-office-access"
 version = "1.0.0"
 description = "P-002: Intelligent Multi-Camera Office Access Management System"
-authors = [{ name = "Satyam Yadav", email = "satyam@example.com" }]
+authors = [{ name = "Satyam Yadav", email = "satyam.yadav0422@gmail.com" }]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.110.0",

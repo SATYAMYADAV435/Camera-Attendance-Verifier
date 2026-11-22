@@ -1,3 +1,11 @@
+"""Standalone synthetic camera sensor service.
+
+This is NOT the entrypoint of the FastAPI app — that is ``app/main.py``
+(``uvicorn app.main:app``). This file only generates synthetic frames
+(or reads a real camera via ``CAMERA_SOURCE``) and logs telemetry; it
+is not wired into the API, the workers, or Docker. Run it only if you
+explicitly want a standalone sensor loop.
+"""
 import os
 import sys
 import time

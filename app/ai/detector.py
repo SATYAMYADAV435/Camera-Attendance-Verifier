@@ -64,8 +64,15 @@ class PersonDetector:
             except Exception as err:
                 logger.warning("YOLOv8 inference error", error=str(err))
 
-        # Fallback if no deep detector or synthetic pattern
+        # Fallback if no deep detector or synthetic pattern.
+        # WARNING: this returns a synthetic centre-of-frame box with a
+        # fixed 0.85 confidence — it is NOT a real detection. It exists
+        # only so the demo pipeline can run without a YOLO model.
         if not detections and not self.is_loaded:
+            logger.warning(
+                "YOLOv8 model not loaded; returning a synthetic centre-frame "
+                "detection. This is demo fallback, not a real person detection."
+            )
             if np.mean(frame) > 0:
                 cx, cy = w / 2.0, h / 2.0
                 bw, bh = w * 0.3, h * 0.7

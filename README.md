@@ -5,7 +5,18 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-An enterprise-grade, multi-camera AI security platform that authenticates office access through **multi-signal biometric fusion**, card-event correlation, presentation attack liveness detection, cross-camera person Re-ID, physical movement analytics, and fail-secure authorization rules.
+A multi-camera AI security demo platform that authenticates office access through **multi-signal biometric fusion**, card-event correlation, presentation attack liveness detection, cross-camera person Re-ID, physical movement analytics, and fail-secure authorization rules.
+
+> **Honesty note — what this is and is not.** This is a working demo / portfolio
+> project, not a production security system. The fusion engine, fail-secure
+> decision logic, AES-256-GCM biometric encryption (`app/core/security.py`)
+> and Elasticsearch/Redis stores with in-memory fallback are implemented.
+> But: face "ArcFace" is a deterministic colour-histogram 512-dim fallback
+> — no ArcFace/InsightFace model weights are bundled (`app/ai/face.py`);
+> liveness is a heuristic texture/frequency check, not a trained
+> anti-spoof model (`app/ai/liveness.py`); and person detection falls back
+> to a synthetic centre-frame box when YOLOv8 cannot load
+> (`app/ai/detector.py`). Do not deploy this as-is for real access control.
 
 ```
 CARD + BIOMETRIC IDENTITY + LIVENESS + PERSON RE-ID + AUTHORIZATION + PHYSICAL MOVEMENT ANALYTICS = INTELLIGENT ACCESS DECISION
@@ -16,7 +27,7 @@ CARD + BIOMETRIC IDENTITY + LIVENESS + PERSON RE-ID + AUTHORIZATION + PHYSICAL M
 ## Key Features
 
 1. **Multi-Signal Identity Fusion Engine (§8)**:
-   - Evaluates weighted inputs from Face Recognition (ArcFace), Body/Person Re-ID, Anti-Spoofing Liveness, Access Card consistency, and Spatio-temporal context.
+   - Evaluates weighted inputs from Face Recognition (512-dim embedding — see honesty note above, not a real ArcFace model), Body/Person Re-ID, Anti-Spoofing Liveness (heuristic), Access Card consistency, and Spatio-temporal context.
    - Categorizes confidence into **HIGH**, **MEDIUM**, and **LOW** tiers.
 2. **Fail-Secure Authorization**:
    - Ambiguous or sub-threshold evidence strictly results in `DENY` or `ALERT`.
@@ -47,8 +58,8 @@ Cameras (1..N) ────────► Video Ingestion ──► Person Dete
               ▼                                   ▼
       [Face Pipeline]                     [Re-ID Pipeline]
       - Face Detection                    - 512-dim Body Features
-      - ArcFace Embedding                 - Spatial Correlation
-      - Anti-Spoofing Liveness
+      - Embedding (histogram fallback)    - Spatial Correlation
+      - Anti-Spoofing Liveness (heuristic)
               │                                   │
               └─────────────────┬─────────────────┘
                                 ▼
@@ -93,7 +104,7 @@ Access services:
    # Linux/macOS:
    source .venv/bin/activate
    ```
-2. Install dependencies:
+2. Install dependencies (heavy: OpenCV + Ultralytics/YOLO — allow several minutes):
    ```bash
    pip install -r requirements.txt
    ```
@@ -101,6 +112,17 @@ Access services:
    ```bash
    uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
    ```
+
+Elasticsearch and Redis are **optional locally**: if they are not running,
+the app falls back to its in-memory store (see `app/repositories/elasticsearch.py`
+and `app/repositories/redis.py`) and `/health/ready` reports them as
+disconnected. With Docker Compose they run as services.
+
+The app entrypoint is `app/main.py` (`uvicorn app.main:app`). `src/main.py`
+is a separate, standalone synthetic camera sensor loop — it is not used by
+the API or by Docker, so ignore it unless you want that loop on its own.
+The dashboard is served from `app/static/index.html`; the duplicate
+`index.html` that used to sit at the repo root has been removed.
 
 ---
 
@@ -132,22 +154,41 @@ pytest -v tests/
 
 ---
 
-## API Surface Summary (`/api/v1`)
+## API Surface Summary (all under `/api/v1`)
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/auth/token` | Obtain JWT access token for RBAC roles |
-| `POST` | `/employees` | Register new employee profile |
-| `GET` | `/employees` | List enrolled employees |
-| `POST` | `/employees/{id}/enrollment/face` | Enroll encrypted face biometric vector |
-| `POST` | `/employees/{id}/enrollment/person` | Enroll person Re-ID body feature vector |
-| `POST` | `/access/card-event` | Ingest physical card reader events |
-| `POST` | `/access/evaluate` | Multi-signal access authorization decision |
-| `POST` | `/access/crossing-event` | Ingest zone track crossing for tailgating |
-| `POST` | `/cameras` | Register RTSP camera feed |
-| `GET` | `/cameras/{id}/health` | Query camera FPS, latency, and stream health |
-| `GET` | `/dashboard/summary` | Aggregated real-time metrics & incident counts |
-| `GET` | `/audit/logs` | Query immutable security audit trail |
+| `POST` | `/api/v1/auth/token` | Obtain JWT access token for RBAC roles |
+| `POST` | `/api/v1/employees` | Register new employee profile |
+| `GET` | `/api/v1/employees` | List enrolled employees |
+| `POST` | `/api/v1/employees/{id}/enrollment/face` | Enroll encrypted face biometric vector |
+| `POST` | `/api/v1/employees/{id}/enrollment/person` | Enroll person Re-ID body feature vector |
+| `POST` | `/api/v1/access/card-event` | Ingest physical card reader events |
+| `POST` | `/api/v1/access/evaluate` | Multi-signal access authorization decision |
+| `POST` | `/api/v1/access/crossing-event` | Ingest zone track crossing for tailgating |
+| `POST` | `/api/v1/cameras` | Register RTSP camera feed |
+| `GET` | `/api/v1/cameras/{id}/health` | Query camera FPS, latency, and stream health |
+| `GET` | `/api/v1/dashboard/summary` | Aggregated real-time metrics & incident counts |
+| `GET` | `/api/v1/audit/logs` | Query immutable security audit trail |
+
+### Demo login accounts (development only)
+
+`POST /api/v1/auth/token` with form fields `username` / `password`:
+
+| Username | Password | Role |
+|---|---|---|
+| `admin` | `admin123` | SYSTEM_ADMIN |
+| `sec_admin` | `secadmin123` | SECURITY_ADMIN |
+| `operator` | `operator123` | SECURITY_OPERATOR |
+| `maintenance` | `maint123` | MAINTENANCE_OPERATOR |
+| `employee` | `emp123` | EMPLOYEE |
+| `auditor` | `audit123` | AUDITOR |
+
+These are plaintext demo defaults in `app/api/auth.py` — replace them with a
+real user store and hashed passwords before any production use. The same
+applies to the default JWT secret and biometric encryption key in
+`configs/development.yaml` / `.env.example` and to the demo keys in
+`docker-compose.yml`.
 
 ---
 

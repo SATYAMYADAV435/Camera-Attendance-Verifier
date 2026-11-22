@@ -61,7 +61,13 @@ class FaceQualityAssessment:
         return passed, overall_quality, metrics
 
 class FaceEmbeddingEngine:
-    """ArcFace/InsightFace compatible 512-dim embedding extractor with robust fallback."""
+    """512-dim embedding extractor.
+
+    NOTE: this is NOT a real ArcFace/InsightFace model. No ONNX model
+    weights are bundled, so it falls back to a deterministic
+    colour-histogram feature vector (see extract_embedding). It is a
+    demo-grade stand-in: do not present it as ArcFace recognition.
+    """
     def __init__(self):
         self.quality_assessor = FaceQualityAssessment()
         self.embedding_dim = 512
